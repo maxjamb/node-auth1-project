@@ -24,13 +24,23 @@ router.post('/login', validateUserBody, (req, res, next) => {
     if(!user || !isValidPassword) {
       next({ message: "Invalid credentials", status: 401 });
     }
+    req.session.user = user.username;
+    req.session.save();
     res.status(200).json({ id: user.id, username: user.username });
   }).catch(next);
 });
 
-router.get('/users', (req, res, next) => {
+router.get('/logout', (req, res, next) => {
+    if (req.session && req.session.user) {
+      req.session.destroy(next);
+    } else {
+      next({ message: "You are not logged in", status: 200 })
+    }
+  })
+  
+  router.get('/users', restricted, (req, res, next) => {
   Users.getUsers().then(users => {
-    if (users) {
+    if(users) {
       res.status(200).json(users);
     } else {
       next({ message: "No users were found", status: 404 });
@@ -38,11 +48,11 @@ router.get('/users', (req, res, next) => {
   }).catch(next);
 });
 
-router.get('/users/:id', validateUserId, (req, res, next) => {
+router.get('/users/:id', restricted, validateUserId, (req, res, next) => {
   res.status(200).json(req.user);
 });
 
-router.put('/users/:id', validateUserId, validateUserBody, (req, res, next) => {
+router.put('    ', validateUserId, validateUserBody, (req, res, next) => {
   Users.update(req.body, req.user.id).then(updatedScheme => {
     res.status(200).json(updatedScheme);
   }).catch(next);
@@ -78,6 +88,15 @@ function validateUserBody(req, res, next) {
   req.body = { username, password };
   next();
 }
+
+function restricted(req, res, next) {
+    if (req.session && req.session.user) {
+      next();
+    } else {
+        next({ message: "YOU SHALL NOT PASS!", status: 401 });
+    }
+    next({ message: "YOU SHALL NOT PASS!", status: 401 });
+  }
 
 router.use((error, req, res, next) => {
   res.status(error.status || 500).json({
